@@ -1,0 +1,5 @@
+Loi: Unsupported class file major version 69 = Java 25.
+Phien ban Gradle 8.10.2 can JDK 17 (nen dung) hoac JDK 21.
+Chay tao-apk-windows.bat trong bo FIX. Script tu chon JDK tuong thich.
+Neu chua co, cai Eclipse Temurin 17; khong can go Java 25.
+APK thanh cong: ThoiGianCuaToi-debug.apk

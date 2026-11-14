@@ -1,0 +1,79 @@
+name: Build APK - Thoi Gian Cua Toi
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-apk:
+    name: Build Android debug APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Lay ma nguon
+        uses: actions/checkout@v4
+
+      - name: Cau hinh Java 17 (tranh loi Java 25)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cau hinh Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cai Android API 35 va Build Tools 35.0.0
+        run: |
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      # CI uses Gradle installed by this action: wrapper JAR does not
+      # need to be committed or downloaded (Windows script handles it locally).
+      - name: Cau hinh Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Dong bo giao dien Web v1.3.1 vao Android
+        run: |
+          python3 tools/sync_web_to_android.py
+          python3 tools/sync_web_to_android.py --check
+
+      - name: Kiem tra moi truong
+        run: |
+          java -version
+          gradle --version
+          test -f app/src/main/AndroidManifest.xml
+          test -f app/src/main/assets/index.html
+          test -f app/src/main/assets/app.js
+
+      - name: Kiem tra JavaScript va tinh nang luu cong viec
+        run: |
+          node --check app/src/main/assets/app.js
+          node tests/web-storage.test.cjs
+          node tests/web-assets.test.cjs
+          node tests/android-assets-sync.test.cjs
+
+      - name: Build APK debug
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Xac nhan va dat ten APK
+        run: |
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/ThoiGianCuaToi-debug.apk
+          ls -lh dist/ThoiGianCuaToi-debug.apk
+
+      - name: Dang tai APK cho nguoi dung
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThoiGianCuaToi-APK
+          path: dist/ThoiGianCuaToi-debug.apk
+          if-no-files-found: error
+          retention-days: 30

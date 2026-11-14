@@ -1,0 +1,15 @@
+# Local data and build outputs
+.gradle/
+.idea/
+build/
+app/build/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+*.log
+.DS_Store
+Thumbs.db
+node_modules/
+__pycache__/

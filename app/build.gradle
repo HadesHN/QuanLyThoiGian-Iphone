@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'vn.gotino.thoigian'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'vn.gotino.thoigian'
+        minSdk 24
+        targetSdk 34
+        versionCode 3
+        versionName '1.3.1'
+    }
+
+    // MainActivity uses BuildConfig.DEBUG. AGP 8.x disables this by default.
+    buildFeatures {
+        buildConfig true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

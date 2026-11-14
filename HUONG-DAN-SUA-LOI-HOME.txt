@@ -1,0 +1,17 @@
+BAN SUA LOI POWERSHELL: Cannot overwrite variable Home because it is read-only or constant.
+
+Nguyen nhan: PowerShell co bien tu dong $HOME chi doc, khong phan biet chu hoa/chu thuong.
+
+Cach xu ly:
+1. Giai nen ZIP HOME-FIX vao thu muc moi.
+2. Chay tao-apk-windows.bat.
+3. Neu Java 17/21 co san, script se hien "Selected Java 17" hoac "Selected Java 21".
+4. APK sau khi build thanh cong: ThoiGianCuaToi-debug.apk.
+
+Sua thu cong tren ban cu:
+- Mo tao-apk-windows.ps1, tim ham Add-JavaCandidate.
+- Doi tham so $Home thanh $JdkHome, doi cac bien $Home duoc su dung trong ham thanh $JdkHome.
+- Giu "Home = $JdkHome" (Home la ten cot / thuoc tinh khong phai bien).
+- Doi "Add-JavaCandidate -Home $_.FullName" thanh "Add-JavaCandidate -JdkHome $_.FullName".
+
+Neu gap loi moi, sao chep nguyen van log moi de kiem tra.
