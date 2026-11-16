@@ -35,12 +35,18 @@ function createApp({ native = true, legacy = '' } = {}) {
     saveData: (json) => { if (!canSave) return false; stored = json; return true; },
   } : undefined;
   const context = {
+    PlannerEvents: require('../site/events.js'),
     document, window: { AndroidApp, addEventListener() {}, scrollTo() {} },
     location: { hash: '#dashboard', protocol: 'file:' },
     localStorage: { getItem(k) { return map.get(k) || null; }, setItem(k,v) { map.set(k,v); } },
     confirm: () => true,
     setTimeout() {}, setInterval() {},
-    FormData: class { constructor(form) { this.vals = form.vals; } entries() { return Object.entries(this.vals); } },
+    FormData: class {
+      constructor(form) { this.vals = form.vals; }
+      entries() { return Object.entries(this.vals); }
+      get(name) { return this.vals[name] ?? null; }
+      getAll(name) { return this.vals[name] ?? []; }
+    },
     console: { ...console, error: () => {} },
     navigator: {},
     Date,
@@ -113,3 +119,36 @@ assert.equal(JSON.parse(app.stored).transactions[0].income,12000000);
 const rawData = JSON.parse(app.stored);
 assert.ok(Array.isArray(rawData.notes) && Array.isArray(rawData.contacts) && Array.isArray(rawData.transactions));
 console.log('OK: task save form-id collision, add/edit, contact, finance, modal, rollback, old data migration.');
+
+// Exercise the normal event handlers and reopen from a saved copy.
+const planner = createApp({native:false,legacy:browserApp.legacy});
+function clickEvent(action, dataset = {}) {
+  planner.listeners.get('click')({target:{closest:selector=>selector==='[data-action]'?{dataset:{action,...dataset}}:null}});
+}
+function submitEvent(values) {
+  planner.listeners.get('submit')({target:form(values,'event-form'),preventDefault(){}});
+}
+clickEvent('event-new');
+assert.match(planner.getNode('#modal-root').innerHTML, /Lưu sự kiện/);
+const date = '2099-01-31';
+submitEvent({eventId:'',title:'Đăng kiểm xe',date,time:'09:00',category:'inspection',priority:'critical',repeat:'once',reminder:['30','7']});
+assert.equal(planner.getNode('#modal-root').innerHTML,'');
+const saved = JSON.parse(planner.legacy);
+assert.equal(saved.events.length,1);
+assert.equal(saved.tasks[0].title,'Việc trên web');
+const id = saved.events[0].id;
+assert.match(planner.getNode('#app').innerHTML,/Đăng kiểm xe/);
+submitEvent({...saved.events[0],eventId:id,title:'Đăng kiểm xe gia đình',reminder:['30','7']});
+assert.equal(planner.api.getDb().events[0].reminderSince,saved.events[0].reminderSince);
+assert.equal(planner.api.getDb().events.length,1);
+const reopened = createApp({native:false,legacy:planner.legacy});
+assert.equal(reopened.api.getDb().events[0].title,'Đăng kiểm xe gia đình');
+clickEvent('event-toggle',{id});
+assert.equal(JSON.parse(planner.legacy).events[0].done,true);
+clickEvent('event-delete',{id});
+assert.deepEqual(JSON.parse(planner.legacy).events,[]);
+planner.context.localStorage.setItem=()=>{throw new Error('Storage unavailable');};
+clickEvent('event-new');
+submitEvent({eventId:'',title:'Cần giữ bản nháp',date,time:'09:00',reminder:['0']});
+assert.match(planner.getNode('#modal-root').innerHTML,/Lưu sự kiện/);
+console.log('OK: event UI handlers, reload, edit, completion, deletion, legacy data and save failure');
