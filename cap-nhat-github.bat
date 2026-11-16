@@ -20,7 +20,7 @@ git add -A
 if errorlevel 1 goto :fail
 git diff --cached --quiet
 if errorlevel 1 (
-  git commit -m "Update GOTINO Web iPhone Android v1.3.1"
+  git commit -m "Update GOTINO Web iPhone Android v1.4.0"
   if errorlevel 1 goto :fail
 ) else (
   echo Khong co thay doi can commit.

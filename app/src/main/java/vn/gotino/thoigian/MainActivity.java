@@ -1,11 +1,15 @@
 package vn.gotino.thoigian;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -28,6 +32,7 @@ public class MainActivity extends Activity {
     private static final String BASE = "https://appassets.androidplatform.net/assets/";
     private static final int REQ_IMPORT = 6201;
     private static final int REQ_EXPORT = 6202;
+    private static final int REQ_EVENT_PERMISSION = 6203;
     private WebView webView;
     private ValueCallback<Uri[]> fileChooserCallback;
     private String exportContent;
@@ -110,7 +115,55 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        webView.loadUrl(BASE + "index.html");
+        webView.loadUrl(BASE + "index.html" + (getIntent().getBooleanExtra(EventReminderReceiver.OPEN_EVENTS, false) ? "#events" : ""));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshEventPermissions();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (webView != null && intent.getBooleanExtra(EventReminderReceiver.OPEN_EVENTS, false)) {
+            webView.evaluateJavascript("location.hash = 'events'", null);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_EVENT_PERMISSION) refreshEventPermissions();
+    }
+
+    private void refreshEventPermissions() {
+        EventReminderReceiver.refresh(this);
+        if (webView != null) {
+            webView.evaluateJavascript("window.dispatchEvent(new Event('eventpermissionchange'))", null);
+        }
+    }
+
+    private void openEventNotificationSettings() {
+        EventReminderReceiver.ensureChannel(this);
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            boolean asked = getPreferences(MODE_PRIVATE).getBoolean("askedEventNotifications", false);
+            if (!asked || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                getPreferences(MODE_PRIVATE).edit().putBoolean("askedEventNotifications", true).apply();
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_EVENT_PERMISSION);
+                return;
+            }
+        }
+        Intent settings;
+        if (Build.VERSION.SDK_INT >= 26) {
+            settings = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+        } else {
+            settings = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+        }
+        startActivity(settings);
     }
 
     private static String mimeFor(String path) {
@@ -139,8 +192,20 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean saveData(String json) {
             if (json == null || json.length() > 8_000_000) return false;
-            return getSharedPreferences("timeplanner_data", MODE_PRIVATE)
+            boolean saved = getSharedPreferences("timeplanner_data", MODE_PRIVATE)
                     .edit().putString("planner_json", json).commit();
+            if (saved) runOnUiThread(() -> EventReminderReceiver.refresh(MainActivity.this));
+            return saved;
+        }
+
+        @JavascriptInterface
+        public String eventNotificationStatus() {
+            return EventReminderReceiver.canNotify(MainActivity.this) ? "enabled" : "disabled";
+        }
+
+        @JavascriptInterface
+        public void enableEventNotifications() {
+            runOnUiThread(MainActivity.this::openEventNotificationSettings);
         }
 
         @JavascriptInterface
@@ -160,7 +225,8 @@ public class MainActivity extends Activity {
         }
         exportContent = content;
         String safeName = filename == null ? "sao-luu.json" : filename.replaceAll("[^A-Za-z0-9._-]", "_");
-        String type = (mime != null && mime.startsWith("text/csv")) ? "text/csv" : "application/json";
+        String type = "text/calendar".equals(mime) ? "text/calendar"
+                : (mime != null && mime.startsWith("text/csv")) ? "text/csv" : "application/json";
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType(type);

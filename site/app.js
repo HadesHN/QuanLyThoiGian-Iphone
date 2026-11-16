@@ -1,12 +1,13 @@
 /* Thời gian của tôi - một ứng dụng web không máy chủ, không phụ thuộc thư viện. */
 (() => {
 'use strict';
+const eventsApi = globalThis.PlannerEvents;
 const STORAGE='gotino.timeplanner.v1';
 let modalDirty=false;
 const weekday=['CN','T2','T3','T4','T5','T6','T7'];
 const areas=[['health','Sức khỏe'],['mind','Tinh thần'],['learning','Trí tuệ'],['finance','Tài chính'],['relationships','Quan hệ'],['family','Gia đình']];
 const priorityNames={urgent:'Khẩn cấp',high:'Quan trọng',medium:'Bình thường',low:'Có thể chờ'};
-const pageNames={dashboard:'Tổng quan',today:'Công việc hôm nay',calendar:'Lịch tháng & tuần',goals:'Mục tiêu năm – quý',habits:'Thói quen thành đạt',vision:'Định hướng cuộc đời',contacts:'Làm chủ mối quan hệ',finance:'Quản trị tài chính',notes:'Ghi chú sáng tạo',journal:'Tổng kết ngày',statistics:'Thống kê hiệu quả',settings:'Cài đặt & dữ liệu'};
+const pageNames={dashboard:'Tổng quan',today:'Công việc hôm nay',calendar:'Lịch tháng & tuần',events:'Sự kiện',goals:'Mục tiêu năm – quý',habits:'Thói quen thành đạt',vision:'Định hướng cuộc đời',contacts:'Làm chủ mối quan hệ',finance:'Quản trị tài chính',notes:'Ghi chú sáng tạo',journal:'Tổng kết ngày',statistics:'Thống kê hiệu quả',settings:'Cài đặt & dữ liệu'};
 const $=(s,root=document)=>root.querySelector(s);
 const $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const pad=n=>String(n).padStart(2,'0');
@@ -24,10 +25,11 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function int(v,min=0,max=10000){return Math.max(min,Math.min(max,Number.parseInt(v,10)||0));}
 function pct(done,total){return total?Math.round(100*done/total):0;}
 function dateRange(end,days){return Array.from({length:days},(_,i)=>shiftDate(end,i-days+1));}
-function fresh(){return {version:2,tasks:[],goals:[],habits:[],contacts:[],transactions:[],notes:[],checks:{},reviews:{},focus:[],vision:{mission:'',why:'',identity:'',actions:'',legacy:'',areas:Object.fromEntries(areas.map(([id])=>[id,5]))},settings:{name:'',focusMinutes:25,theme:'light',dayStart:'08:00',notifications:false}};}
+function fresh(){return {version:3,events:[],tasks:[],goals:[],habits:[],contacts:[],transactions:[],notes:[],checks:{},reviews:{},focus:[],vision:{mission:'',why:'',identity:'',actions:'',legacy:'',areas:Object.fromEntries(areas.map(([id])=>[id,5]))},settings:{name:'',focusMinutes:25,theme:'light',dayStart:'08:00',notifications:false}};}
 function normalize(raw){const d=fresh();if(!raw||typeof raw!=='object')return d;
  for(const k of ['tasks','goals','habits','focus','contacts','transactions','notes'])if(Array.isArray(raw[k]))d[k]=raw[k].slice(0,5000).filter(x=>x&&typeof x==='object');
  for(const k of ['checks','reviews','vision','settings'])if(raw[k]&&typeof raw[k]==='object'&&!Array.isArray(raw[k]))d[k]={...d[k],...raw[k]};
+ if(Array.isArray(raw.events))d.events=raw.events.map(eventsApi.cleanEvent).filter(Boolean);
  d.vision.areas={...fresh().vision.areas,...(raw.vision?.areas||{})};return d;
 }
 // Android: SharedPreferences là nguồn lưu chính; tự chuyển dữ liệu localStorage cũ sang khi nâng cấp.
@@ -89,7 +91,8 @@ function dashboard(){
  <div class="dashboard-focus"><div><div class="eyebrow">VIỆC ƯU TIÊN</div><strong>${priority.length?esc(priority[0].title):'Chưa có việc ưu tiên'}</strong><p>${priority.length?`${priorityNames[priority[0].priority]||'Bình thường'} · ${niceDate(priority[0].date)}`:'Bạn có thể tạo việc mới để bắt đầu.'}</p></div><button class="primary-btn" data-action="new-task">＋ Thêm việc</button></div>
  <div class="stats-grid compact-stats"><div class="stat-card"><span class="stat-label">Việc hôm nay</span><div class="stat-value">${s.today.length}</div></div><div class="stat-card"><span class="stat-label">Đã hoàn thành</span><div class="stat-value">${s.completedToday}</div></div><div class="stat-card"><span class="stat-label">Tiến độ hôm nay</span><div class="stat-value">${doneRate}%</div></div><div class="stat-card"><span class="stat-label">Cần ưu tiên</span><div class="stat-value">${s.high}</div></div></div>
  <div class="two-cols dashboard-cols"><section class="card">${cardTitle('Danh sách hôm nay',`${s.completedToday}/${s.today.length} việc đã hoàn thành`,`<button class="section-link" data-page="today">Xem tất cả ↗</button>`)}${s.today.length?s.today.sort(compareTasks).slice(0,7).map(t=>taskRow(t)).join(''):emptyState('Chưa có việc hôm nay','Tạo một việc mới để bắt đầu.',`<button class="secondary-btn" data-action="new-task">＋ Thêm công việc</button>`)}</section>
- <section class="card">${cardTitle('Mục tiêu đang theo dõi','Tối đa 2 mục tiêu gần đây',`<button class="section-link" data-page="goals">Mở mục tiêu ↗</button>`)}${goals.length?goals.map(g=>renderGoalCompact(g)).join(''):emptyState('Chưa có mục tiêu','Thêm mục tiêu năm hoặc quý.',`<button class="secondary-btn" data-action="new-goal">＋ Thêm mục tiêu</button>`)}<div class="dashboard-links"><button class="ghost-btn" data-page="calendar">▦ Xem lịch</button><button class="ghost-btn" data-page="statistics">▥ Thống kê</button></div></section></div>`;
+ <section class="card">${cardTitle('Mục tiêu đang theo dõi','Tối đa 2 mục tiêu gần đây',`<button class="section-link" data-page="goals">Mở mục tiêu ↗</button>`)}${goals.length?goals.map(g=>renderGoalCompact(g)).join(''):emptyState('Chưa có mục tiêu','Thêm mục tiêu năm hoặc quý.',`<button class="secondary-btn" data-action="new-goal">＋ Thêm mục tiêu</button>`)}<div class="dashboard-links"><button class="ghost-btn" data-page="calendar">▦ Xem lịch</button><button class="ghost-btn" data-page="statistics">▥ Thống kê</button></div></section></div>
+ ${dashboardEvents()}`;
 }
 function renderGoalCompact(g){const progress=goalPercent(g);return `<div class="goal-card ${progress>=100?'achieved':''}"><div class="goal-head"><div class="goal-title">${esc(g.title)}</div><span class="goal-category">${esc(goalScope(g))}</span></div><div class="goal-extra">${esc(areaLabel(g.area))}${g.due?` · Hạn ${niceDate(g.due)}`:''}</div><div class="goal-row">${percentBar(progress)}<strong>${progress}%</strong></div></div>`;}
 function areaLabel(s){return areas.find(a=>a[0]===s)?.[1]||'Phát triển cá nhân';}
@@ -111,17 +114,21 @@ if(mode==='month'){
  let cells=['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<div class="calendar-weekday">${x}</div>`).join('');
  for(let i=0;i<42;i++){
   const dt=new Date(m.getFullYear(),m.getMonth(),1+i-offset),s=localDate(dt),today=s===localDate(),selected=s===ui.date,items=tasksOn(s).sort(compareTasks);
-  cells+=`<div class="calendar-day ${dt.getMonth()!==m.getMonth()?'outside':''} ${today?'today':''} ${selected?'selected':''}" data-action="pick-calendar-day" data-day="${s}" role="button" tabindex="0" aria-label="Ngày ${niceDate(s)}"><span class="day-num">${dt.getDate()}</span>${items.slice(0,3).map(t=>`<div class="event-chip ${t.status==='done'?'done':t.date<localDate()?'overdue':''}" title="${esc(t.title)}">${t.time?esc(t.time)+' ':''}${esc(t.title)}</div>`).join('')}${items.length>3?`<span class="day-more">+${items.length-3} việc khác</span>`:''}</div>`;
+  const eventCount=db.events.filter(event=>eventsApi.occursOn(event,s)).length;
+  cells+=`<div class="calendar-day ${dt.getMonth()!==m.getMonth()?'outside':''} ${today?'today':''} ${selected?'selected':''}" data-action="pick-calendar-day" data-day="${s}" role="button" tabindex="0" aria-label="Ngày ${niceDate(s)}"><span class="day-num">${dt.getDate()}</span>${eventCount?`<span class="event-count" title="${eventCount} sự kiện">◆ ${eventCount}</span>`:''}${items.slice(0,3).map(t=>`<div class="event-chip ${t.status==='done'?'done':t.date<localDate()?'overdue':''}" title="${esc(t.title)}">${t.time?esc(t.time)+' ':''}${esc(t.title)}</div>`).join('')}${items.length>3?`<span class="day-more">+${items.length-3} việc khác</span>`:''}</div>`;
  }
  content=`<div class="calendar-grid">${cells}</div>`;
 }else{
- content=`<div class="weekday-row">${Array.from({length:7},(_,i)=>{const day=shiftDate(start,i),tasks=tasksOn(day).sort(compareTasks);return `<div class="weekday-col ${day===localDate()?'active':''}"><h4>${['Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy','Chủ nhật'][i]}<br><small>${niceDate(day)}</small></h4>${tasks.length?tasks.map(t=>`<div class="event-chip ${t.status==='done'?'done':''}" data-action="edit-task" data-id="${esc(t.id)}">${esc(t.title)}</div>`).join(''):'<span class="small-note">Chưa có lịch</span>'}<button class="ghost-btn" style="margin-top:12px" data-action="new-task" data-day="${day}">＋</button></div>`;}).join('')}</div>`;
+ content=`<div class="weekday-row">${Array.from({length:7},(_,i)=>{const day=shiftDate(start,i),tasks=tasksOn(day).sort(compareTasks), events=db.events.filter(event=>eventsApi.occursOn(event,day));return `<div class="weekday-col ${day===localDate()?'active':''}"><h4>${['Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy','Chủ nhật'][i]}<br><small>${niceDate(day)}</small></h4>${tasks.length?tasks.map(t=>`<div class="event-chip ${t.status==='done'?'done':''}" data-action="edit-task" data-id="${esc(t.id)}">${esc(t.title)}</div>`).join(''):events.length?'':'<span class="small-note">Chưa có lịch</span>'}${events.map(event=>`<button class="event-chip event-calendar-link" data-action="event-edit" data-id="${esc(event.id)}">◆ ${esc(event.time)} ${esc(event.title)}</button>`).join('')}<button class="ghost-btn" style="margin-top:12px" data-action="new-task" data-day="${day}">＋</button></div>`;}).join('')}</div>`;
 }
 const selected=tasksOn(ui.date).sort(compareTasks);
+const selectedEvents=db.events.filter(event=>eventsApi.occursOn(event,ui.date));
 return `${headings('Lịch làm việc', 'Đưa mục tiêu từ kế hoạch tháng thành lịch hành động từng ngày.', `<button class="primary-btn" data-action="new-task">＋ Thêm lịch</button>`)}
 <section class="card"> <div class="calendar-heading"><div><div class="eyebrow">KẾ HOẠCH HÀNH ĐỘNG</div><h2 class="month-title">${mode==='week'?`Tuần ${niceDate(start)} – ${niceDate(shiftDate(start,6))}`:monthLabel(m)}</h2></div><div class="month-actions"><div class="toggle-tabs"><button class="${mode==='month'?'active':''}" data-action="calendar-mode" data-mode="month">Tháng</button><button class="${mode==='week'?'active':''}" data-action="calendar-mode" data-mode="week">Tuần</button></div><button class="icon-button" data-action="calendar-prev" aria-label="Tháng hoặc tuần trước">‹</button><button class="icon-button" data-action="calendar-next" aria-label="Tháng hoặc tuần sau">›</button><button class="secondary-btn" data-action="calendar-now">Hôm nay</button></div></div>${content}</section>
 <div class="calendar-below two-cols"><section class="card">${cardTitle(`Kế hoạch ngày ${niceDate(ui.date)}`,`${selected.length} công việc dự kiến`,`<button class="section-link" data-action="new-task" data-day="${ui.date}">＋ Thêm cho ngày này</button>`)}${selected.length?selected.map(t=>taskRow(t)).join(''):emptyState('Ngày này chưa có lịch','Chọn thêm công việc để xây dựng kế hoạch.')}</section>
-<section class="card">${cardTitle('Cách lập kế hoạch theo sách','Từ mục tiêu dài hạn đến hành động hôm nay')}<div class="timeline"><b>Mục tiêu năm</b><span>→</span><b>Quý</b><span>→</span><b>Tháng</b><span>→</span><b>Tuần</b><span>→</span><b>Ngày</b></div><p class="small-note">Đầu tháng: xác định các việc quan trọng. Đầu tuần: phân bổ nhiệm vụ theo từng ngày. Mỗi sáng: lựa chọn việc ưu tiên và ấn định giờ thực hiện.</p><button class="secondary-btn" data-page="goals" style="margin-top:13px">◎ Quản lý mục tiêu</button></section></div>`;
+<section class="card">${cardTitle('Sự kiện ngày '+niceDate(ui.date),'',`<button class="section-link" data-action="event-new" data-day="${ui.date}">＋ Thêm sự kiện</button>`)}
+${selectedEvents.length?selectedEvents.map(event=>`<div class="summary-line"><span>${esc(event.time)} · ${esc(event.title)}</span><button class="section-link" data-action="event-edit" data-id="${esc(event.id)}">Sửa</button></div>`).join(''):'<p class="small-note">Chưa có sự kiện trong ngày.</p>'}</section></div>
+<div class="calendar-below"><section class="card">${cardTitle('Cách lập kế hoạch theo sách','Từ mục tiêu dài hạn đến hành động hôm nay')}<div class="timeline"><b>Mục tiêu năm</b><span>→</span><b>Quý</b><span>→</span><b>Tháng</b><span>→</span><b>Tuần</b><span>→</span><b>Ngày</b></div><p class="small-note">Đầu tháng: xác định các việc quan trọng. Đầu tuần: phân bổ nhiệm vụ theo từng ngày. Mỗi sáng: lựa chọn việc ưu tiên và ấn định giờ thực hiện.</p><button class="secondary-btn" data-page="goals" style="margin-top:13px">◎ Quản lý mục tiêu</button></section></div>`;
 }
 function goalsPage(){const year=ui.goalYear,items=db.goals.filter(g=>Number(g.year)===year),group={year:items.filter(g=>g.scope==='year'),quarter:items.filter(g=>g.scope==='quarter'),month:items.filter(g=>g.scope==='month')};
 return `${headings('Mục tiêu năm – quý', 'Chọn 3–5 điều quan trọng, chia thành quý, tháng và những việc làm được.',`<button class="primary-btn" data-action="new-goal">＋ Thêm mục tiêu</button>`)}
@@ -305,7 +312,158 @@ function doExtraAction(action,node){const id=node.dataset.id;
  }return false;
 }
 
+const eventPriorityRank = {critical: 0, important: 1, normal: 2};
+let eventView = 'upcoming';
+let eventPriority = 'all';
+let webReminderCursor = Date.now() - eventsApi.lookback;
+
+function eventEntries() {
+ const today = localDate();
+ return db.events.map(event => ({event, date: eventsApi.nextOccurrence(event)})).filter(row => row.date)
+  .map(row => ({...row, state: row.event.done ? 'done' : localDate(row.date) < today ? 'overdue' : 'upcoming'}))
+  .sort((a, b) => localDate(a.date).localeCompare(localDate(b.date)) ||
+   eventPriorityRank[a.event.priority] - eventPriorityRank[b.event.priority] || a.date - b.date);
+}
+
+function eventLine({event, date, state}) {
+ const id = esc(event.id);
+ const reminder = event.reminders.map(n => n === 0 ? 'Đúng ngày' : 'Trước ' + n + ' ngày').join(' · ');
+ return `<article class="planner-event">
+  <div class="planner-event-date"><strong>${pad(date.getDate())}/${pad(date.getMonth()+1)}</strong><small>${date.getFullYear()}</small></div>
+  <div class="planner-event-info">
+   <h3>${esc(event.title)}</h3>
+   <div class="planner-event-tags"><span>${eventsApi.categories[event.category]}</span><span class="event-level level-${event.priority}">${eventsApi.levels[event.priority]}</span>${state==='overdue' ? '<span class="event-level level-critical">Quá hạn</span>' : ''}</div>
+   <div class="small-note">${esc(event.time)}${event.repeat==='yearly'?' · Hằng năm':''}${event.location?' · '+esc(event.location):''}</div>
+   ${reminder ? `<div class="small-note">${reminder}</div>` : ''}
+   ${event.notes ? `<p class="event-notes">${esc(event.notes)}</p>` : ''}
+  </div>
+  <div class="planner-event-actions">
+   <button class="secondary-btn" data-action="event-edit" data-id="${id}">Sửa</button>
+   <button class="secondary-btn" data-action="event-export" data-id="${id}">Xuất lịch (.ics)</button>
+   ${event.repeat==='once' ? `<button class="secondary-btn" data-action="event-toggle" data-id="${id}">${event.done ? 'Mở lại' : 'Đã xử lý'}</button>` : ''}
+   <button class="ghost-btn" data-action="event-delete" data-id="${id}">Xóa</button>
+  </div></article>`;
+}
+
+function eventsPage() {
+ const entries = eventEntries();
+ const rows = entries.filter(({state, event}) => state === eventView && (eventPriority === 'all' || event.priority === eventPriority));
+ const native = window.AndroidApp;
+ const androidStatus = typeof native?.eventNotificationStatus === 'function' ? native.eventNotificationStatus() : '';
+ const reminderNotice = androidStatus
+  ? `<div class="event-notice"><span>${androidStatus==='enabled'?'Đã bật thông báo sự kiện trên Android.':'Hãy bật thông báo để nhận nhắc khi đã đóng ứng dụng.'}</span>
+    ${androidStatus==='enabled'?'':'<button class="secondary-btn" data-action="event-enable">Bật thông báo Android</button>'}</div>`
+  : `<div class="event-notice"><span>Web nhắc khi ứng dụng đang mở. Trên iPhone, dùng <strong>Xuất lịch (.ics)</strong>, nhập vào Lịch Apple và kiểm tra cảnh báo để nhận nhắc khi đã đóng ứng dụng.</span></div>`;
+ return `${headings('Sự kiện', 'Sinh nhật, ngày giỗ, hạn giấy tờ và lịch gia đình.', '<button class="primary-btn" data-action="event-new">＋ Thêm sự kiện</button>')}
+  ${reminderNotice}
+  <div class="event-toolbar">
+   <div class="toggle-tabs" aria-label="Trạng thái sự kiện">${[['upcoming','Sắp tới'],['overdue','Quá hạn'],['done','Đã xử lý']].map(([key,label]) => `<button class="${key===eventView?'active':''}" aria-pressed="${key===eventView}" data-action="event-view" data-value="${key}">${label} · ${entries.filter(row=>row.state===key).length}</button>`).join('')}</div>
+   <select class="input" id="event-priority" aria-label="Lọc theo mức độ">${options([['all','Mọi mức độ'], ...Object.entries(eventsApi.levels)],eventPriority)}</select>
+  </div>
+  <div class="planner-events">${rows.length ? rows.map(eventLine).join('') : `<section class="card">${emptyState('Chưa có sự kiện trong mục này','')}</section>`}</div>`;
+}
+
+function dashboardEvents() {
+ const entries = eventEntries().filter(row => row.state === 'upcoming');
+ return `<section class="card event-dashboard">${cardTitle('Sự kiện sắp tới','', '<button class="section-link" data-page="events">Xem sự kiện ↗</button>')}
+  ${entries.length ? entries.slice(0,3).map(({event,date})=>`<div class="summary-line"><span>${esc(event.title)}</span><strong>${niceDate(localDate(date))}</strong></div>`).join('') : '<button class="secondary-btn" data-action="event-new">＋ Thêm sự kiện</button>'}
+ </section>`;
+}
+
+function eventModal(event, day) {
+ const item = event || {id:'',title:'',date:day||localDate(),time:'09:00',category:'other',priority:'normal',repeat:'once',reminders:[7,1,0]};
+ modal(event ? 'Sửa sự kiện' : 'Thêm sự kiện', `<form id="event-form">
+  <input type="hidden" name="eventId" value="${esc(item.id)}">
+  <div class="field-grid">
+   <label class="field full"><span>Tên sự kiện *</span><input class="input" name="title" required maxlength="160" value="${esc(item.title)}"></label>
+   <label class="field"><span>Loại sự kiện</span><select class="input" name="category">${options(Object.entries(eventsApi.categories), item.category)}</select></label>
+   <label class="field"><span>Mức độ</span><select class="input" name="priority">${options(Object.entries(eventsApi.levels), item.priority)}</select></label>
+   <label class="field"><span>Ngày dương lịch *</span><input class="input" type="date" name="date" required min="1900-01-01" max="9999-12-31" value="${esc(item.date)}"></label>
+   <label class="field"><span>Giờ sự kiện và giờ nhắc *</span><input class="input" type="time" name="time" required value="${esc(item.time)}"></label>
+   <label class="field"><span>Lặp lại</span><select class="input" name="repeat">${options([['once','Một lần'],['yearly','Hằng năm theo dương lịch']],item.repeat)}</select></label>
+   <label class="field"><span>Địa điểm</span><input class="input" name="location" maxlength="200" value="${esc(item.location)}"></label>
+   <fieldset class="event-alert-options full"><legend>Ngày nhắc</legend>
+    ${eventsApi.reminderDays.map(n=>`<label><input type="checkbox" class="checkbox" name="reminder" value="${n}" ${item.reminders.includes(n)?'checked':''}> ${n===0?'Đúng ngày':n+' ngày trước'}</label>`).join('')}
+   </fieldset>
+   <label class="field full"><span>Ghi chú</span><textarea class="input" name="notes" rows="3" maxlength="2000">${esc(item.notes)}</textarea></label>
+  </div>
+  <div class="form-actions"><button type="button" class="secondary-btn" data-action="close-modal">Hủy</button><button type="submit" class="primary-btn">Lưu sự kiện</button></div>
+ </form>`);
+}
+
+function saveEvent(form) {
+ const values = new FormData(form);
+ const old = db.events.find(event => event.id === values.get('eventId'));
+ const reminders = values.getAll('reminder').map(Number);
+ const sameSchedule = old && old.date === values.get('date') && old.time === values.get('time') &&
+  old.repeat === values.get('repeat') && old.reminders.length === reminders.length &&
+  reminders.every(day=>old.reminders.includes(day));
+ const event = eventsApi.cleanEvent({
+  ...Object.fromEntries(values.entries()), id: old?.id || uid(), done: old?.done, reminders,
+  reminderSince: sameSchedule ? old.reminderSince : Date.now()
+ });
+ if (!event) {
+  toast('Hãy kiểm tra tên, ngày và giờ của sự kiện.', true);
+  return;
+ }
+ const events = old ? db.events.map(item => item.id === old.id ? event : item) : [...db.events, event];
+ if (!persist({...db, events})) return;
+ closeModal(true);
+ eventPriority = 'all';
+ eventView = event.done ? 'done' : event.repeat === 'once' && event.date < localDate() ? 'overdue' : 'upcoming';
+ setPage('events');
+ toast('Đã lưu sự kiện.');
+}
+
+function exportEvent(event) {
+ const text = eventsApi.calendarFile(event);
+ if (!text) return;
+ if (window.AndroidApp) {
+  download(text, 'su-kien.ics', 'text/calendar');
+  return;
+ }
+ const file = typeof File === 'function' ? new File([text],'su-kien.ics',{type:'text/calendar'}) : null;
+ if (file && typeof navigator.share === 'function' && navigator.canShare?.({files:[file]})) {
+  navigator.share({files:[file]}).catch(error => {
+   if (error.name !== 'AbortError') toast('Chưa chia sẻ được. Hãy thử lại.', true);
+  });
+ } else {
+  download(text, 'su-kien.ics', 'text/calendar');
+ }
+}
+
+function eventAction(action, node) {
+ if (action === 'event-new') { eventModal(null,node.dataset.day); return; }
+ if (action === 'event-enable') { window.AndroidApp?.enableEventNotifications(); return; }
+ if (action === 'event-view') { eventView = node.dataset.value; render(); return; }
+ const event = db.events.find(item => item.id === node.dataset.id);
+ if (!event) return;
+ switch (action) {
+ case 'event-edit': eventModal(event); break;
+ case 'event-export': exportEvent(event); break;
+ case 'event-delete':
+  if (confirm('Xóa sự kiện này?') && persist({...db, events:db.events.filter(item=>item.id!==event.id)})) render();
+  break;
+ case 'event-toggle':
+  if (event.repeat === 'once' && persist({...db, events:db.events.map(item=>item.id===event.id ? {...item,done:!item.done,reminderSince:Date.now()} : item)})) render();
+  break;
+ }
+}
+
+function checkWebEventReminders() {
+ if (typeof window.AndroidApp?.eventNotificationStatus === 'function' || document.hidden) return;
+ const now = Date.now();
+ const key = STORAGE + '.event-reminder-cursor';
+ try { webReminderCursor = Math.max(webReminderCursor, Number(localStorage.getItem(key)) || 0); } catch {}
+ const due = eventsApi.dueReminders(db.events, Math.min(webReminderCursor,now),now);
+ webReminderCursor = now;
+ try { localStorage.setItem(key,String(now)); } catch {}
+ if (due.length === 1) toast(`Nhắc sự kiện: ${due[0].event.title} · ${niceDate(localDate(due[0].date))}`);
+ if (due.length > 1) toast(`Có ${due.length} sự kiện đến giờ nhắc. Mở mục Sự kiện để xem.`);
+}
+
 function doAction(node){const action=node.dataset.action,id=node.dataset.id,day=node.dataset.day;
+if(action.startsWith('event-')){eventAction(action,node);return;}
 if(doExtraAction(action,node))return;
 switch(action){
  case 'new-task':taskModal('',day);break;case 'edit-task':taskModal(id);break;case 'delete-task':if(confirm('Xóa công việc này?')){db.tasks=db.tasks.filter(x=>x.id!==id);save();render();toast('Đã xóa công việc.');}break;
@@ -332,27 +490,32 @@ switch(action){
  case 'restore':$('#restore-file')?.click();break;
  case 'csv':exportCsv();break;
  case 'demo':insertDemo();break;
- case 'reset-data':if(confirm('Thao tác này XÓA TOÀN BỘ dữ liệu đang lưu ở trình duyệt. Bạn đã sao lưu chưa?')&&confirm('Xác nhận lần cuối: Xóa dữ liệu không thể hoàn tác.')){db=fresh();save();ui.page='dashboard';setPage('dashboard');toast('Đã làm mới dữ liệu.');}break;
+ case 'reset-data':if(confirm('Thao tác này XÓA TOÀN BỘ dữ liệu đang lưu ở trình duyệt. Bạn đã sao lưu chưa?')&&confirm('Xác nhận lần cuối: Xóa dữ liệu không thể hoàn tác.')){if(!persist(fresh()))break;ui.page='dashboard';setPage('dashboard');toast('Đã làm mới dữ liệu.');}break;
  case 'install':if(window.AndroidApp){toast('Đây đã là ứng dụng Android cài trên điện thoại.');break;}if(ui.installPrompt){ui.installPrompt.prompt();ui.installPrompt.userChoice.finally(()=>{ui.installPrompt=null;});}else toast('Trên iPhone: Safari → Chia sẻ → Thêm vào Màn hình chính. Trên Android: mở menu trình duyệt → Cài ứng dụng.');break;
  }
 }
 function render(){document.body.classList.toggle('dark',db.settings.theme==='dark');$('#breadcrumb').textContent=pageNames[ui.page]||'Tổng quan';$$('[data-page]',$('#sidebar')).forEach(n=>n.classList.toggle('active',n.dataset.page===ui.page));if(['habits','vision'].includes(ui.page))$('#group-personal').open=true;if(['contacts','finance','notes'].includes(ui.page))$('#group-tools').open=true;if(['journal','statistics'].includes(ui.page))$('#group-reports').open=true;
-const renderer={dashboard,today:todayPage,calendar:calendarPage,goals:goalsPage,habits:habitsPage,vision:visionPage,contacts:contactsPage,finance:financePage,notes:notesPage,journal:journalPage,statistics:statsPage,settings:settingsPage};
+const renderer={dashboard,today:todayPage,calendar:calendarPage,events:eventsPage,goals:goalsPage,habits:habitsPage,vision:visionPage,contacts:contactsPage,finance:financePage,notes:notesPage,journal:journalPage,statistics:statsPage,settings:settingsPage};
 $('#app').innerHTML=(renderer[ui.page]||dashboard)();$('#live-date').textContent=niceDate(localDate());if(ui.page==='notes')initNoteCanvas();}
 function timerTick(){if(!ui.focusRunning||!ui.focusEnd)return;ui.focusRemaining=Math.max(0,Math.ceil((ui.focusEnd-Date.now())/1000));const face=$('#focus-clock');if(face)face.textContent=clockText(ui.focusRemaining);
 if(ui.focusRemaining===0){ui.focusRunning=false;ui.focusEnd=null;db.focus.push({id:uid(),date:localDate(),minutes:ui.focusMinutes,taskId:ui.focusTask||'',timestamp:new Date().toISOString()});save();toast(`Đã hoàn thành phiên tập trung ${ui.focusMinutes} phút!`);if(typeof Notification !== 'undefined' && Notification.permission==='granted')new Notification('Hoàn thành phiên tập trung',{body:`Bạn đã hoàn thành ${ui.focusMinutes} phút làm việc.`});ui.focusRemaining=ui.focusMinutes*60;render();}}
 function handleImport(file){if(!file)return;if(file.size>5*1024*1024){toast('Tệp JSON vượt quá 5 MB.',true);return;}const reader=new FileReader();reader.onload=()=>{try{const content=JSON.parse(reader.result);if(content.app!=='thoi-gian-gotino'||!content.data||!Array.isArray(content.data.tasks)){toast('Không phải bản sao lưu hợp lệ của chương trình.',true);return;}if(!confirm('Nhập dữ liệu sẽ thay thế toàn bộ dữ liệu hiện có trên thiết bị. Tiếp tục?'))return;if(!persist(normalize(content.data)))return;render();toast('Khôi phục bản sao lưu thành công.');}catch{toast('Không đọc được tệp sao lưu.',true);}};reader.readAsText(file);}
 function bindEvents(){document.addEventListener('click',e=>{if(e.target.id==='modal-backdrop'){return;}const nav=e.target.closest('[data-page]');if(nav){setPage(nav.dataset.page);return;}const action=e.target.closest('[data-action]');if(action){doAction(action);return;}});
-document.addEventListener('change',e=>{if(e.target.id==='note-paper'){const sheet=$('#note-sheet');if(sheet){sheet.classList.remove('paper-grid','paper-lined','paper-blank');sheet.classList.add('paper-'+e.target.value);}scheduleNoteSave();return;}if(e.target.closest('#modal-root form'))modalDirty=true;if(e.target.matches('[data-check-task]')){const t=db.tasks.find(x=>x.id===e.target.dataset.checkTask);if(t){t.status=e.target.checked?'done':'todo';t.completedAt=e.target.checked?new Date().toISOString():'';save();render();}return;}
+document.addEventListener('change',e=>{if(e.target.id==='event-priority'){eventPriority=e.target.value;render();return;}if(e.target.id==='note-paper'){const sheet=$('#note-sheet');if(sheet){sheet.classList.remove('paper-grid','paper-lined','paper-blank');sheet.classList.add('paper-'+e.target.value);}scheduleNoteSave();return;}if(e.target.closest('#modal-root form'))modalDirty=true;if(e.target.matches('[data-check-task]')){const t=db.tasks.find(x=>x.id===e.target.dataset.checkTask);if(t){t.status=e.target.checked?'done':'todo';t.completedAt=e.target.checked?new Date().toISOString():'';save();render();}return;}
 if(e.target.id==='selected-day'){if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){ui.date=e.target.value;render();}return;}
 if(e.target.id==='focus-task'){ui.focusTask=e.target.value;return;}
 if(e.target.id==='restore-file'){handleImport(e.target.files[0]);e.target.value='';return;}});
 document.addEventListener('input',e=>{if(e.target.closest('#modal-root form'))modalDirty=true;if(e.target.id==='contact-search'){ui.contactQuery=e.target.value;const node=$('#contact-results');if(node)node.innerHTML=contactRows();return;}if(['note-title','note-content'].includes(e.target.id)){scheduleNoteSave();return;}const out=e.target.dataset.rangeOutput;if(out){const node=document.getElementById(out);if(node)node.textContent=`${e.target.value}/10`;}});
-document.addEventListener('submit',e=>{if(['task-form','goal-form','habit-form','vision-form','review-form','review-ratings','settings-form','contact-form','transaction-form'].includes(e.target.getAttribute('id'))){e.preventDefault();if(['contact-form','transaction-form'].includes(e.target.getAttribute('id')))handleExtraForm(e.target);else doForm(e.target);}});
+document.addEventListener('submit',e=>{if(e.target.getAttribute('id')==='event-form'){e.preventDefault();saveEvent(e.target);return;}if(['task-form','goal-form','habit-form','vision-form','review-form','review-ratings','settings-form','contact-form','transaction-form'].includes(e.target.getAttribute('id'))){e.preventDefault();if(['contact-form','transaction-form'].includes(e.target.getAttribute('id')))handleExtraForm(e.target);else doForm(e.target);}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if((e.key==='Enter'||e.key===' ')&&e.target.matches('.calendar-day[role="button"]')){e.preventDefault();doAction(e.target);}});
 $('#menu-btn').addEventListener('click',openSidebar);$('#scrim').addEventListener('click',closeSidebar);
 window.addEventListener('hashchange',()=>{const newPage=location.hash.slice(1);if(pageNames[newPage]&&newPage!==ui.page){if(ui.page==='notes')noteSave(true);ui.page=newPage;render();}});
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();ui.installPrompt=e;});}
-function boot(){bindEvents();render();setInterval(timerTick,500);if(!window.AndroidApp && 'serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+function boot(){bindEvents();render();setInterval(timerTick,500);
+ checkWebEventReminders();
+ setInterval(checkWebEventReminders,15000);
+ document.addEventListener('visibilitychange',checkWebEventReminders);
+ window.addEventListener('eventpermissionchange',()=>{if(ui.page==='events'&&!$('#modal-backdrop'))render();});
+if(!window.AndroidApp && 'serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 boot();
 })();

@@ -60,3 +60,33 @@ html{-webkit-text-size-adjust:100%}
 .right{text-align:right!important}.money-in{color:#248466!important}.money-out{color:#bc6255!important}.table-scroll{overflow:auto;max-width:100%}.table-scroll table{min-width:750px}.table-scroll .metrics-table td{vertical-align:top}.item-buttons{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.contact-detail{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#617e72;margin:7px 0}.contact-item{align-items:start}.avatar{display:grid;place-items:center;border-radius:50%;width:38px;height:38px;background:#e2eee7;color:#34674e;font-size:19px!important;font-weight:800;flex:none}.contact-item .item-buttons{flex:none}.finance-chart{display:flex;gap:10px;height:210px;align-items:stretch;padding:16px 0 0}.finance-chart-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}.finance-bars{display:flex;justify-content:center;align-items:end;gap:5px;flex:1;width:100%;border-bottom:1px solid #e0eae1}.finance-bar{width:min(26px,37%);border-radius:5px 5px 0 0;min-height:2px}.finance-bar.income,.legend-dot.income{background:#4e9a79}.finance-bar.expense,.legend-dot.expense{background:#d4a078}.chart-legend{display:flex;align-items:center;gap:8px;justify-content:center;font-size:11px;color:#627c6e;margin-top:15px}.legend-dot{width:10px;height:10px;border-radius:3px;display:inline-block}.notes-layout{display:grid;grid-template-columns:minmax(195px,240px) minmax(0,1fr);gap:16px;align-items:start}.note-tab{display:block;text-align:left;border:1px solid #e4ece6;background:#fff;border-radius:11px;padding:13px;width:100%;color:#2a5348}.note-tab strong,.note-tab small{display:block}.note-tab small{margin-top:6px;color:#789587;font-size:10px}.note-tab.active{background:#e9f4ed;border-color:#8dbca1}.note-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:18px}.note-tools>div:first-child{flex:1 1 210px}.note-tools .input{width:auto;max-width:100%;min-width:160px}.note-tools>div:first-child .input{width:100%}.note-tools .danger-btn{padding:9px 12px}.paper-sheet{width:min(100%,780px);margin:auto;position:relative;min-height:570px;aspect-ratio:3/4;background-color:#fff;border:1px solid #d9e4e3;border-radius:3px;box-shadow:0 7px 24px #17372d12;overflow:hidden}.paper-sheet.paper-grid{background-image:linear-gradient(to right,#c9ddec75 1px,transparent 1px),linear-gradient(to bottom,#c9ddec75 1px,transparent 1px);background-size:24px 24px}.paper-sheet.paper-lined{background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 31px,#c6d8e9b0 32px,#c6d8e9b0 33px)}.paper-sheet.paper-blank{background-image:none}.paper-sheet textarea,.paper-sheet canvas{position:absolute;inset:0;width:100%;height:100%;background:transparent;border:0;border-radius:0}.paper-sheet textarea{resize:none;outline:0;padding:29px 26px;font-size:16px;line-height:32px;color:#274b4d;letter-spacing:.2px}.paper-sheet textarea::placeholder{color:#9aaab0}.paper-sheet canvas{touch-action:none}.paper-sheet.typing-mode canvas{pointer-events:none}.paper-sheet.drawing-mode textarea{pointer-events:none}.note-main .help{margin:12px 0}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.note-tools .toggle-tabs{white-space:nowrap}body.dark .note-tab{background:#1e3334;color:#e4eee7;border-color:#34504a}body.dark .note-tab.active{background:#294b3f}.page-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:900px){.notes-layout{grid-template-columns:1fr}.notes-list .data-list{display:flex;flex-direction:row;overflow-x:auto}.notes-list .note-tab{flex:0 0 170px}.note-tools{gap:6px}.paper-sheet{min-height:430px}}
 @media(max-width:590px){.finance-chart{height:165px}.finance-bar{width:min(18px,35%)}.contact-item{flex-wrap:wrap}.contact-item .item-buttons{width:100%;justify-content:flex-end}.paper-sheet{min-height:360px}.paper-sheet textarea{padding:20px 17px;font-size:14px}.note-tools>div:first-child{flex-basis:100%}.note-tools .input{min-width:120px}.note-main{padding:10px!important}.note-tools .primary-btn,.note-tools .secondary-btn,.note-tools .danger-btn{font-size:11px;padding:8px}}
+
+/* Personal events */
+.event-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;margin-bottom:14px;background:var(--paper);border:1px solid var(--edge);border-radius:12px}
+.event-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:0 0 14px}
+.event-toolbar select{width:auto}
+.planner-events{display:grid;gap:9px}
+.planner-event{display:grid;grid-template-columns:65px minmax(0,1fr) auto;align-items:start;gap:15px;padding:15px;background:var(--paper);border:1px solid var(--edge);border-radius:12px}
+.planner-event-date{display:grid;justify-items:center;padding:8px 4px;background:#e7f1ec;color:#244c42;border-radius:8px;line-height:1.35}
+.planner-event-date strong{font-size:17px;font-variant-numeric:tabular-nums}
+.planner-event h3{margin:0 0 5px;overflow-wrap:anywhere;font-size:15px}
+.planner-event-tags{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;margin-bottom:4px}
+.event-level{background:#e7f1ec;color:#315f51;border-radius:20px;padding:2px 8px;font-weight:700}
+.level-critical{background:#fae5df;color:#8e392e}
+.level-important{background:#fff1dd;color:#754b12}
+.planner-event-actions{display:flex;flex-wrap:wrap;gap:5px}
+.planner-event-actions button{padding:7px 9px}
+.event-notes{overflow-wrap:anywhere;white-space:pre-wrap;margin:6px 0 0}
+.event-alert-options{border:1px solid var(--edge);border-radius:9px;padding:8px;display:flex;flex-wrap:wrap;gap:7px 12px;margin:0}
+.event-alert-options label{display:flex;align-items:center;gap:4px}
+.event-dashboard{margin-top:12px}
+.event-dashboard .summary-line{gap:12px}
+.event-dashboard .summary-line strong{flex:none}
+.event-count{font-size:10px;color:#326e54;white-space:nowrap}
+.event-calendar-link{border:0;width:100%;text-align:left}
+body.dark .event-count{color:#a6ddc7}
+@media(max-width:680px){
+ .event-notice{align-items:flex-start;flex-direction:column}
+ .planner-event{grid-template-columns:52px minmax(0,1fr);gap:8px 12px}
+ .planner-event-actions{grid-column:2}
+}

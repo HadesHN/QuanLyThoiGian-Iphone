@@ -24,74 +24,38 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # GitHub-hosted ubuntu-24.04 already contains an Android SDK.
-      # Use it directly instead of re-downloading command-line tools via
-      # android-actions/setup-android@v3 (the failed step in v1.3.1).
-      - name: Kiem tra SDK co san tren GitHub runner
+      - name: Kiem tra Android SDK API 35
         shell: bash
         run: |
           set -euo pipefail
           sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          echo "Android SDK root: $sdk_root"
           if [[ ! -d "$sdk_root" ]]; then
-            echo "::error::Khong tim thay Android SDK tai $sdk_root. Kiem tra runner image."
+            echo "::error::Khong tim thay Android SDK tai $sdk_root."
             exit 1
           fi
-          manager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
-          if [[ ! -x "$manager" ]]; then
-            manager="$(command -v sdkmanager || true)"
-          fi
-          if [[ -z "$manager" || ! -x "$manager" ]]; then
-            echo "::error::Khong tim thay sdkmanager trong Android SDK."
-            ls -la "$sdk_root/cmdline-tools" || true
-            exit 1
-          fi
-          echo "ANDROID_HOME=$sdk_root" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
-          echo "SDKMANAGER=$manager" >> "$GITHUB_ENV"
-          echo "$(dirname "$manager")" >> "$GITHUB_PATH"
-          echo "SDK Manager: $manager"
-          "$manager" --version
-          java -version
 
-      - name: Chap nhan giay phep va cai Android SDK 35
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Accepting licenses under $ANDROID_HOME"
-          # sdkmanager returns the exit code of the final command in this
-          # pipeline. 'yes' can receive SIGPIPE after sdkmanager exits.
-          set +o pipefail
-          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses > "$RUNNER_TEMP/android-sdk-licenses.log" 2>&1
-          license_status=$?
-          set -o pipefail
-          if [[ $license_status -ne 0 ]]; then
-            cat "$RUNNER_TEMP/android-sdk-licenses.log"
-            echo "::error::Khong the chap nhan license Android SDK (exit: $license_status)."
-            exit "$license_status"
-          fi
-          echo "Installing platforms;android-35 and build-tools;35.0.0"
-          install_ok=0
-          for attempt in 1 2 3; do
-            if "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --install \
-               "platform-tools" "platforms;android-35" "build-tools;35.0.0"; then
-              install_ok=1
-              break
+          if [[ ! -s "$sdk_root/platforms/android-35/android.jar" || ! -x "$sdk_root/build-tools/35.0.0/aapt2" ]]; then
+            manager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+            if [[ ! -x "$manager" ]]; then
+              manager="$(command -v sdkmanager || true)"
             fi
-            echo "::warning::Cai Android SDK that bai lan $attempt/3; thu lai."
-            sleep 5
-          done
-          if [[ $install_ok -ne 1 ]]; then
-            echo "::error::Khong cai duoc Android SDK 35. Xem log ket noi / license ngay tren."
+            if [[ ! -x "$manager" ]]; then
+              echo "::error::Khong tim thay sdkmanager de cai SDK API 35."
+              exit 1
+            fi
+            if ! (set +o pipefail; yes | "$manager" --sdk_root="$sdk_root" --licenses); then
+              echo "::error::Khong the chap nhan giay phep Android SDK."
+              exit 1
+            fi
+            "$manager" --sdk_root="$sdk_root" --install "platforms;android-35" "build-tools;35.0.0"
+          fi
+
+          if [[ ! -s "$sdk_root/platforms/android-35/android.jar" || ! -x "$sdk_root/build-tools/35.0.0/aapt2" ]]; then
+            echo "::error::SDK API 35 hoac Build Tools 35.0.0 chua san sang."
             exit 1
           fi
-          test -s "$ANDROID_HOME/platforms/android-35/android.jar" || {
-            echo "::error::Thieu Android SDK Platform 35 android.jar"; exit 1;
-          }
-          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2" || {
-            echo "::error::Thieu Android Build Tools 35.0.0"; exit 1;
-          }
-          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
+          printf 'ANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\n' "$sdk_root" "$sdk_root" >> "$GITHUB_ENV"
+          printf 'sdk.dir=%s\n' "$sdk_root" > local.properties
           echo "Android SDK API 35 and Build Tools 35.0.0: OK"
 
       - name: Cau hinh Gradle 8.10.2
@@ -99,7 +63,7 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Dong bo giao dien Web v1.3.2 vao Android
+      - name: Dong bo giao dien Web vao Android
         run: |
           python3 tools/sync_web_to_android.py
           python3 tools/sync_web_to_android.py --check
@@ -110,6 +74,7 @@ jobs:
           node --check app/src/main/assets/app.js
           node tests/web-storage.test.cjs
           node tests/web-assets.test.cjs
+          node tests/events.test.cjs
           node tests/android-assets-sync.test.cjs
           gradle --version
 

@@ -28,6 +28,7 @@ jobs:
           node --check site/sw.js
           node tests/web-storage.test.cjs
           node tests/web-assets.test.cjs
+          node tests/events.test.cjs
           node tests/android-assets-sync.test.cjs
   deploy:
     needs: validate

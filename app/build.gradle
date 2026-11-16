@@ -10,8 +10,8 @@ android {
         applicationId 'vn.gotino.thoigian'
         minSdk 24
         targetSdk 34
-        versionCode 3
-        versionName '1.3.1'
+        versionCode 5
+        versionName '1.4.0'
     }
 
     // MainActivity uses BuildConfig.DEBUG. AGP 8.x disables this by default.

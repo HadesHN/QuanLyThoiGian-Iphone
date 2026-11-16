@@ -1,7 +1,7 @@
 /* Cache isolated to this GitHub Pages project (important for github.io origins). */
 const CACHE_PREFIX = 'thoi-gian-gotino-pages-';
-const CACHE_NAME = CACHE_PREFIX + 'v1.3.1-20261114';
-const FILES = ['./', './index.html', './styles.css?v=1.3.1', './app.js?v=1.3.1', './manifest.webmanifest', './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/icon-maskable-512.png', './assets/apple-touch-icon.png'];
+const CACHE_NAME = CACHE_PREFIX + 'v1.4.0';
+const FILES = ['./', './index.html', './styles.css?v=1.4.0', './app.js?v=1.4.0', './events.js?v=1.4.0', './manifest.webmanifest', './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/icon-maskable-512.png', './assets/apple-touch-icon.png'];
 const base = new URL(self.registration.scope);
 const offlinePage = new URL('./index.html', base);
 self.addEventListener('install', event => {

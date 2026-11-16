@@ -7,13 +7,13 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-if not exist ".github\workflows\deploy-pages.yml" (
-  echo Khong tim thay file GitHub Pages workflow.
+if not exist ".github\workflows\deploy-pages.yml" if not exist ".github\workflows\build-apk.yml" (
+  echo Khong tim thay workflow GitHub.
   pause
   exit /b 1
 )
 echo.
-echo *** PUSH WEB IPHONE LEN GITHUB ***
+echo *** PUSH THOI GIAN CUA TOI LEN GITHUB ***
 echo Hay tao repository RONG tren https://github.com/new truoc khi chay.
 set /p "REPO_URL=Nhap URL repository (https://github.com/USER/REPO.git): "
 if "%REPO_URL%"=="" goto :failed
@@ -38,7 +38,7 @@ if errorlevel 1 goto :failed
 git push -u origin main
 if errorlevel 1 goto :failed
 echo.
-echo Da push. Vao GitHub Settings - Pages - Source: GitHub Actions.
+echo Da push. Mo tab Actions tren GitHub de theo doi.
 pause
 exit /b 0
 :failed
