@@ -16,5 +16,11 @@ for (const f of walk(site)) {
   assert.ok(fs.existsSync(target), `APK assets missing ${rel}`);
   assert.deepEqual(fs.readFileSync(target),fs.readFileSync(f),`APK assets differ from site/${rel}`);
 }
-assert.match(fs.readFileSync(path.join(root, 'app/build.gradle'),'utf8'), /versionName '1\.3\.1'/);
+const androidBuild = fs.readFileSync(path.join(root, 'app/build.gradle'), 'utf8');
+const webIndex = fs.readFileSync(path.join(site, 'index.html'), 'utf8');
+const androidVersion = androidBuild.match(/^\s*versionName\s+['"]([^'"]+)['"]/m)?.[1];
+const webVersion = webIndex.match(/class="version">Phiên bản ([\d.]+)\s/)?.[1];
+assert.ok(androidVersion, 'Missing versionName in app/build.gradle');
+assert.ok(webVersion, 'Missing application version in site/index.html');
+assert.equal(androidVersion, webVersion, 'Android versionName must match the Web/iPhone version');
 console.log('OK: latest Web/iPhone assets and features are included in Android APK source.');

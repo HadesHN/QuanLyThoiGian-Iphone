@@ -16,13 +16,18 @@ jobs:
 
     steps:
       - name: Lay ma nguon
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cai dat JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Cai dat Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
 
       - name: Kiem tra Android SDK API 35
         shell: bash
@@ -59,7 +64,7 @@ jobs:
           echo "Android SDK API 35 and Build Tools 35.0.0: OK"
 
       - name: Cau hinh Gradle 8.10.2
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.10.2'
 
@@ -68,15 +73,20 @@ jobs:
           python3 tools/sync_web_to_android.py
           python3 tools/sync_web_to_android.py --check
 
-      - name: Kiem tra nguon va tinh nang
+      - name: Kiem tra cu phap JavaScript
         run: |
           node --check site/app.js
-          node --check app/src/main/assets/app.js
+          node --check site/events.js
+          node --check site/sw.js
+
+      - name: Kiem tra luu du lieu, tai nguyen va su kien
+        run: |
           node tests/web-storage.test.cjs
           node tests/web-assets.test.cjs
           node tests/events.test.cjs
-          node tests/android-assets-sync.test.cjs
-          gradle --version
+
+      - name: Kiem tra phien ban va tai nguyen Android
+        run: node tests/android-assets-sync.test.cjs
 
       - name: Build APK debug
         run: gradle --no-daemon --stacktrace :app:assembleDebug
@@ -89,7 +99,7 @@ jobs:
           ls -lh dist/ThoiGianCuaToi-debug.apk
 
       - name: Dang tai APK cho nguoi dung
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ThoiGianCuaToi-APK
           path: dist/ThoiGianCuaToi-debug.apk
